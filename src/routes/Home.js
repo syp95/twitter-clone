@@ -1,41 +1,52 @@
+import Tweet from 'components/Tweet';
 import { dbService } from 'fbase';
-import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import {
+    addDoc,
+    collection,
+    doc,
+    getDocs,
+    onSnapshot,
+    orderBy,
+    query,
+    where,
+} from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 
-const Home = () => {
+const Home = ({ userObj }) => {
     const [tweet, setTweet] = useState('');
     const [tweets, setTweets] = useState([]);
 
-    const getTweets = async () => {
-        const dbTweets = await getDocs(collection(dbService, 'tweet'));
-
-        dbTweets.forEach((doc) => {
-            const tweetObj = {
-                ...doc.data(),
-                id: doc.id,
-            };
-            console.log(tweetObj);
-            setTweets((prev) => [tweetObj, ...prev]);
-        });
-    };
     useEffect(() => {
-        getTweets();
+        const q = query(
+            collection(dbService, 'tweet'),
+            orderBy('createdAt', 'desc'),
+        );
+        onSnapshot(q, (snapshot) => {
+            const tweetArray = snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
+            setTweets(tweetArray);
+        });
     }, []);
 
-    const onTweetSubmit = (event) => {
-        event.preventDefault();
-        addDoc(collection(dbService, 'tweet'), {
-            tweet,
-            createdAt: Date.now(),
-        });
-        setTweet('');
-    };
     const onChange = (event) => {
         const {
             target: { value },
         } = event;
         setTweet(value);
     };
+
+    const onTweetSubmit = (event) => {
+        event.preventDefault();
+        addDoc(collection(dbService, 'tweet'), {
+            text: tweet,
+            createdAt: Date.now(),
+            creatorId: userObj.uid,
+        });
+        setTweet('');
+    };
+
     return (
         <div>
             <form onSubmit={onTweetSubmit}>
@@ -48,6 +59,15 @@ const Home = () => {
                 />
                 <input type='submit' value='tweet' />
             </form>
+            <ul>
+                {tweets.map((data) => (
+                    <Tweet
+                        key={data.id}
+                        tweetObj={data}
+                        isOwner={data.creatorId === userObj.uid}
+                    />
+                ))}
+            </ul>
         </div>
     );
 };
