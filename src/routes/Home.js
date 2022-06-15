@@ -11,7 +11,7 @@ import {
     query,
     where,
 } from 'firebase/firestore';
-import { ref, uploadString } from 'firebase/storage';
+import { getDownloadURL, ref, uploadString } from 'firebase/storage';
 import React, { useEffect, useState } from 'react';
 
 const Home = ({ userObj }) => {
@@ -41,16 +41,23 @@ const Home = ({ userObj }) => {
 
     const onTweetSubmit = async (event) => {
         event.preventDefault();
-        const fileRef = ref(storageService, `${userObj.uid}/${uuidv4()}`);
-        const response = await uploadString(fileRef, image, 'data_url');
-        console.log(response);
 
-        // addDoc(collection(dbService, 'tweet'), {
-        //     text: tweet,
-        //     createdAt: Date.now(),
-        //     creatorId: userObj.uid,
-        // });
-        // setTweet('');
+        let imageUrl = '';
+
+        if (image !== '') {
+            const fileRef = ref(storageService, `${userObj.uid}/${uuidv4()}`);
+            const response = await uploadString(fileRef, image, 'data_url');
+            imageUrl = await getDownloadURL(response.ref);
+        }
+        const newTweetObj = {
+            text: tweet,
+            createdAt: Date.now(),
+            creatorId: userObj.uid,
+            imageUrl,
+        };
+        await addDoc(collection(dbService, 'tweet'), newTweetObj);
+        setTweet('');
+        setImage('');
     };
     const onFileChange = (event) => {
         const {
@@ -64,7 +71,7 @@ const Home = ({ userObj }) => {
         reader.readAsDataURL(theFile);
     };
     const onImageClear = () => {
-        setImage(null);
+        setImage('');
     };
     return (
         <div>
